@@ -11,7 +11,6 @@ const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || "supersecret";
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || "refreshsecret";
 
-// ⚡ Временное хранилище пользователей и refresh токенов
 let users = [
   { id: 1, username: "admin", password: "1234", phone: "+1000000000" },
   { id: 2, username: "user", password: "pass", phone: "+2000000000" }
@@ -19,14 +18,12 @@ let users = [
 
 let refreshTokens = [];
 
-// 🔑 Генерация Access токена (короткоживущий)
 function generateAccessToken(user) {
   return jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, {
     expiresIn: "15m"
   });
 }
 
-// 🔑 Генерация Refresh токена (долгоживущий)
 function generateRefreshToken(user) {
   const token = jwt.sign(
     { id: user.id, username: user.username },
@@ -37,7 +34,6 @@ function generateRefreshToken(user) {
   return token;
 }
 
-// 🟢 Регистрация
 app.post("/api/register", (req, res) => {
   const { username, password, phone } = req.body;
 
@@ -64,7 +60,6 @@ app.post("/api/register", (req, res) => {
   });
 });
 
-// 🟢 Логин (требует логин, пароль и телефон)
 app.post("/api/login", (req, res) => {
   const { username, password, phone } = req.body;
 
@@ -93,7 +88,6 @@ app.post("/api/login", (req, res) => {
   });
 });
 
-// 🛡 Middleware для проверки Access токена
 function authenticateToken(req, res, next) {
   const authHeader = req.headers["authorization"];
   const token = authHeader && authHeader.split(" ")[1];
@@ -107,7 +101,6 @@ function authenticateToken(req, res, next) {
   });
 }
 
-// 🔄 Обновление токенов
 app.post("/api/refresh", (req, res) => {
   const { token } = req.body;
   if (!token) return res.sendStatus(401);
@@ -116,10 +109,8 @@ app.post("/api/refresh", (req, res) => {
   jwt.verify(token, JWT_REFRESH_SECRET, (err, user) => {
     if (err) return res.sendStatus(403);
 
-    // Удаляем старый refresh token
     refreshTokens = refreshTokens.filter((t) => t !== token);
 
-    // Генерируем новые
     const accessToken = generateAccessToken({ id: user.id, username: user.username });
     const refreshToken = generateRefreshToken({ id: user.id, username: user.username });
 
@@ -127,7 +118,6 @@ app.post("/api/refresh", (req, res) => {
   });
 });
 
-// 🚪 Logout
 app.post("/api/logout", (req, res) => {
   const { token } = req.body;
   if (!token) return res.sendStatus(400);
@@ -136,7 +126,6 @@ app.post("/api/logout", (req, res) => {
   res.json({ message: "Вы вышли из системы" });
 });
 
-// 🔒 Приватный маршрут
 app.get("/api/protected", authenticateToken, (req, res) => {
   res.json({
     message: "Добро пожаловать в защищённый эндпоинт!",
