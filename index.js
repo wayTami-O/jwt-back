@@ -18,6 +18,53 @@ let users = [
 
 let refreshTokens = [];
 
+// 📋 Статичные данные
+let contacts = {
+  phones: ["+7 (999) 123-45-67", "+7 (999) 765-43-21"],
+  address: "г. Москва, ул. Примерная, д. 1, офис 100",
+  email: "info@example.com",
+  title: "Контакты"
+};
+
+let advantages = [
+  {
+    title: "Опыт работы",
+    description: "Более 10 лет опыта в разработке качественных решений"
+  },
+  {
+    title: "Команда профессионалов",
+    description: "Наша команда состоит из опытных специалистов"
+  },
+  {
+    title: "Индивидуальный подход",
+    description: "Каждый проект разрабатывается с учетом ваших потребностей"
+  }
+];
+
+let projects = [
+  {
+    photo: "https://example.com/project1.jpg",
+    title: "Веб-приложение для бизнеса",
+    description: "Разработка современного веб-приложения с использованием React и Node.js",
+    workType: "Веб-разработка",
+    client: "ООО 'Компания А'"
+  },
+  {
+    photo: "https://example.com/project2.jpg",
+    title: "Мобильное приложение",
+    description: "Создание кроссплатформенного мобильного приложения на React Native",
+    workType: "Мобильная разработка",
+    client: "ООО 'Компания Б'"
+  },
+  {
+    photo: "https://example.com/project3.jpg",
+    title: "E-commerce платформа",
+    description: "Разработка полнофункциональной платформы для онлайн-торговли",
+    workType: "Веб-разработка",
+    client: "ИП Иванов И.И."
+  }
+];
+
 function generateAccessToken(user) {
   return jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, {
     expiresIn: "15m"
@@ -137,6 +184,77 @@ app.get("/api/protected", authenticateToken, (req, res) => {
 app.get("/api/users", (req, res) => {
   const safeUsers = users.map(({ password, ...rest }) => rest);
   res.json(safeUsers);
+});
+
+// 📞 Получить контакты (требуется JWT)
+app.get("/api/contacts", authenticateToken, (req, res) => {
+  res.json(contacts);
+});
+
+// 📞 Добавить/обновить контакты (требуется JWT)
+app.post("/api/contacts", authenticateToken, (req, res) => {
+  const { phone, address, email, title } = req.body;
+
+  if (phone) {
+    if (!contacts.phones.includes(phone)) {
+      contacts.phones.push(phone);
+    }
+  }
+
+  if (address) contacts.address = address;
+  if (email) contacts.email = email;
+  if (title) contacts.title = title;
+
+  res.status(201).json({
+    message: "Контакты обновлены",
+    contacts
+  });
+});
+
+// ⭐ Получить преимущества (требуется JWT)
+app.get("/api/advantages", authenticateToken, (req, res) => {
+  res.json(advantages);
+});
+
+// ⭐ Добавить преимущество (требуется JWT)
+app.post("/api/advantages", authenticateToken, (req, res) => {
+  const { title, description } = req.body;
+
+  if (!title || !description) {
+    return res.status(400).json({ message: "Введите title и description" });
+  }
+
+  const newAdvantage = { title, description };
+  advantages.push(newAdvantage);
+
+  res.status(201).json({
+    message: "Преимущество добавлено",
+    advantage: newAdvantage
+  });
+});
+
+// 🚀 Получить проекты (требуется JWT)
+app.get("/api/projects", authenticateToken, (req, res) => {
+  res.json(projects);
+});
+
+// 🚀 Добавить проект (требуется JWT)
+app.post("/api/projects", authenticateToken, (req, res) => {
+  const { photo, title, description, workType, client } = req.body;
+
+  if (!photo || !title || !description || !workType || !client) {
+    return res.status(400).json({ 
+      message: "Введите все поля: photo, title, description, workType, client" 
+    });
+  }
+
+  const newProject = { photo, title, description, workType, client };
+  projects.push(newProject);
+
+  res.status(201).json({
+    message: "Проект добавлен",
+    project: newProject
+  });
 });
 
 // 🌍 Для проверки
