@@ -188,7 +188,11 @@ const swaggerSpec = {
               schema: {
                 type: "object",
                 properties: {
-                  phone: { type: "string" },
+                  phones: {
+                    type: "array",
+                    items: { type: "string" },
+                    description: "Массив из 2 номеров телефонов",
+                  },
                   address: { type: "string" },
                   email: { type: "string" },
                   title: { type: "string" },
@@ -718,11 +722,12 @@ app.get("/api/contacts", authenticateToken, (req, res) => {
  */
 // 📞 Добавить/обновить контакты (требуется JWT)
 app.post("/api/contacts", authenticateToken, (req, res) => {
-  const { phone, address, email, title } = req.body;
+  const { phones, address, email, title } = req.body;
 
-  if (phone) {
-    if (!contacts.phones.includes(phone)) {
-      contacts.phones.push(phone);
+  if (phones) {
+    if (Array.isArray(phones) && phones.length > 0) {
+      // Устанавливаем массив телефонов (берем первые 2, если больше)
+      contacts.phones = phones.slice(0, 2);
     }
   }
 
