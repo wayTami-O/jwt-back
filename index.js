@@ -1,11 +1,48 @@
 import express from "express";
 import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
+import swaggerUi from "swagger-ui-express";
+import swaggerJsdoc from "swagger-jsdoc";
 
 dotenv.config();
 
 const app = express();
 app.use(express.json());
+
+// Swagger конфигурация
+const swaggerOptions = {
+  definition: {
+    openapi: "3.0.0",
+    info: {
+      title: "JWT Back API",
+      version: "1.0.0",
+      description: "API для работы с JWT аутентификацией и статичными данными",
+    },
+    servers: [
+      {
+        url: "https://jwt-back-ivory.vercel.app",
+        description: "Production server",
+      },
+      {
+        url: "http://localhost:3000",
+        description: "Development server",
+      },
+    ],
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: "http",
+          scheme: "bearer",
+          bearerFormat: "JWT",
+        },
+      },
+    },
+  },
+  apis: ["./index.js"],
+};
+
+const swaggerSpec = swaggerJsdoc(swaggerOptions);
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || "supersecret";
@@ -81,6 +118,35 @@ function generateRefreshToken(user) {
   return token;
 }
 
+/**
+ * @swagger
+ * /api/register:
+ *   post:
+ *     summary: Регистрация нового пользователя
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - username
+ *               - password
+ *               - phone
+ *             properties:
+ *               username:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *               phone:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Регистрация успешна
+ *       400:
+ *         description: Ошибка валидации
+ */
 app.post("/api/register", (req, res) => {
   const { username, password, phone } = req.body;
 
@@ -107,6 +173,35 @@ app.post("/api/register", (req, res) => {
   });
 });
 
+/**
+ * @swagger
+ * /api/login:
+ *   post:
+ *     summary: Вход в систему
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - username
+ *               - password
+ *               - phone
+ *             properties:
+ *               username:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *               phone:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Вход успешен
+ *       401:
+ *         description: Неверные данные
+ */
 app.post("/api/login", (req, res) => {
   const { username, password, phone } = req.body;
 
@@ -148,6 +243,32 @@ function authenticateToken(req, res, next) {
   });
 }
 
+/**
+ * @swagger
+ * /api/refresh:
+ *   post:
+ *     summary: Обновление токенов
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - token
+ *             properties:
+ *               token:
+ *                 type: string
+ *                 description: Refresh token
+ *     responses:
+ *       200:
+ *         description: Токены обновлены
+ *       401:
+ *         description: Не авторизован
+ *       403:
+ *         description: Неверный токен
+ */
 app.post("/api/refresh", (req, res) => {
   const { token } = req.body;
   if (!token) return res.sendStatus(401);
@@ -165,6 +286,30 @@ app.post("/api/refresh", (req, res) => {
   });
 });
 
+/**
+ * @swagger
+ * /api/logout:
+ *   post:
+ *     summary: Выход из системы
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - token
+ *             properties:
+ *               token:
+ *                 type: string
+ *                 description: Refresh token
+ *     responses:
+ *       200:
+ *         description: Выход успешен
+ *       400:
+ *         description: Неверный запрос
+ */
 app.post("/api/logout", (req, res) => {
   const { token } = req.body;
   if (!token) return res.sendStatus(400);
@@ -173,6 +318,22 @@ app.post("/api/logout", (req, res) => {
   res.json({ message: "Вы вышли из системы" });
 });
 
+/**
+ * @swagger
+ * /api/protected:
+ *   get:
+ *     summary: Защищенный эндпоинт
+ *     tags: [Protected]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Доступ разрешен
+ *       401:
+ *         description: Не авторизован
+ *       403:
+ *         description: Неверный токен
+ */
 app.get("/api/protected", authenticateToken, (req, res) => {
   res.json({
     message: "Добро пожаловать в защищённый эндпоинт!",
@@ -180,17 +341,74 @@ app.get("/api/protected", authenticateToken, (req, res) => {
   });
 });
 
+/**
+ * @swagger
+ * /api/users:
+ *   get:
+ *     summary: Получить список всех пользователей
+ *     tags: [Users]
+ *     responses:
+ *       200:
+ *         description: Список пользователей
+ */
 // 👥 Получить всех пользователей (без паролей)
 app.get("/api/users", (req, res) => {
   const safeUsers = users.map(({ password, ...rest }) => rest);
   res.json(safeUsers);
 });
 
+/**
+ * @swagger
+ * /api/contacts:
+ *   get:
+ *     summary: Получить контакты
+ *     tags: [Contacts]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Контакты
+ *       401:
+ *         description: Не авторизован
+ *       403:
+ *         description: Неверный токен
+ */
 // 📞 Получить контакты (требуется JWT)
 app.get("/api/contacts", authenticateToken, (req, res) => {
   res.json(contacts);
 });
 
+/**
+ * @swagger
+ * /api/contacts:
+ *   post:
+ *     summary: Добавить/обновить контакты
+ *     tags: [Contacts]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               phone:
+ *                 type: string
+ *               address:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *               title:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Контакты обновлены
+ *       401:
+ *         description: Не авторизован
+ *       403:
+ *         description: Неверный токен
+ */
 // 📞 Добавить/обновить контакты (требуется JWT)
 app.post("/api/contacts", authenticateToken, (req, res) => {
   const { phone, address, email, title } = req.body;
@@ -211,11 +429,59 @@ app.post("/api/contacts", authenticateToken, (req, res) => {
   });
 });
 
+/**
+ * @swagger
+ * /api/advantages:
+ *   get:
+ *     summary: Получить список преимуществ
+ *     tags: [Advantages]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Список преимуществ
+ *       401:
+ *         description: Не авторизован
+ *       403:
+ *         description: Неверный токен
+ */
 // ⭐ Получить преимущества (требуется JWT)
 app.get("/api/advantages", authenticateToken, (req, res) => {
   res.json(advantages);
 });
 
+/**
+ * @swagger
+ * /api/advantages:
+ *   post:
+ *     summary: Добавить преимущество
+ *     tags: [Advantages]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - title
+ *               - description
+ *             properties:
+ *               title:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Преимущество добавлено
+ *       400:
+ *         description: Ошибка валидации
+ *       401:
+ *         description: Не авторизован
+ *       403:
+ *         description: Неверный токен
+ */
 // ⭐ Добавить преимущество (требуется JWT)
 app.post("/api/advantages", authenticateToken, (req, res) => {
   const { title, description } = req.body;
@@ -233,11 +499,71 @@ app.post("/api/advantages", authenticateToken, (req, res) => {
   });
 });
 
+/**
+ * @swagger
+ * /api/projects:
+ *   get:
+ *     summary: Получить список проектов
+ *     tags: [Projects]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Список проектов
+ *       401:
+ *         description: Не авторизован
+ *       403:
+ *         description: Неверный токен
+ */
 // 🚀 Получить проекты (требуется JWT)
 app.get("/api/projects", authenticateToken, (req, res) => {
   res.json(projects);
 });
 
+/**
+ * @swagger
+ * /api/projects:
+ *   post:
+ *     summary: Добавить проект
+ *     tags: [Projects]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - photo
+ *               - title
+ *               - description
+ *               - workType
+ *               - client
+ *             properties:
+ *               photo:
+ *                 type: string
+ *                 description: Ссылка на фото
+ *               title:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               workType:
+ *                 type: string
+ *                 description: Тип работы
+ *               client:
+ *                 type: string
+ *                 description: Заказчик
+ *     responses:
+ *       201:
+ *         description: Проект добавлен
+ *       400:
+ *         description: Ошибка валидации
+ *       401:
+ *         description: Не авторизован
+ *       403:
+ *         description: Неверный токен
+ */
 // 🚀 Добавить проект (требуется JWT)
 app.post("/api/projects", authenticateToken, (req, res) => {
   const { photo, title, description, workType, client } = req.body;
@@ -257,6 +583,16 @@ app.post("/api/projects", authenticateToken, (req, res) => {
   });
 });
 
+/**
+ * @swagger
+ * /:
+ *   get:
+ *     summary: Проверка работоспособности API
+ *     tags: [Health]
+ *     responses:
+ *       200:
+ *         description: Backend работает
+ */
 // 🌍 Для проверки
 app.get("/", (req, res) => {
   res.send("Backend работает 🚀");
