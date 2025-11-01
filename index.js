@@ -2,96 +2,308 @@ import express from "express";
 import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
 import swaggerUi from "swagger-ui-express";
-import swaggerJsdoc from "swagger-jsdoc";
-import { fileURLToPath } from "url";
-import { dirname, join } from "path";
 
 dotenv.config();
 
 const app = express();
 app.use(express.json());
 
-// Получаем путь к текущему файлу для работы на Vercel
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-// Swagger конфигурация
-const swaggerOptions = {
-  definition: {
-    openapi: "3.0.0",
-    info: {
-      title: "JWT Back API",
-      version: "1.0.0",
-      description: "API для работы с JWT аутентификацией и статичными данными",
+// Полная Swagger спецификация без чтения файлов (для работы на Vercel)
+const swaggerSpec = {
+  openapi: "3.0.0",
+  info: {
+    title: "JWT Back API",
+    version: "1.0.0",
+    description: "API для работы с JWT аутентификацией и статичными данными",
+  },
+  servers: [
+    {
+      url: "https://jwt-back-ivory.vercel.app",
+      description: "Production server",
     },
-    servers: [
-      {
-        url: "https://jwt-back-ivory.vercel.app",
-        description: "Production server",
+    {
+      url: "http://localhost:3000",
+      description: "Development server",
+    },
+  ],
+  components: {
+    securitySchemes: {
+      bearerAuth: {
+        type: "http",
+        scheme: "bearer",
+        bearerFormat: "JWT",
       },
-      {
-        url: "http://localhost:3000",
-        description: "Development server",
+    },
+  },
+  paths: {
+    "/": {
+      get: {
+        summary: "Проверка работоспособности API",
+        tags: ["Health"],
+        responses: {
+          "200": { description: "Backend работает" },
+        },
       },
-    ],
-    components: {
-      securitySchemes: {
-        bearerAuth: {
-          type: "http",
-          scheme: "bearer",
-          bearerFormat: "JWT",
+    },
+    "/api/register": {
+      post: {
+        summary: "Регистрация нового пользователя",
+        tags: ["Auth"],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["username", "password", "phone"],
+                properties: {
+                  username: { type: "string" },
+                  password: { type: "string" },
+                  phone: { type: "string" },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "201": { description: "Регистрация успешна" },
+          "400": { description: "Ошибка валидации" },
+        },
+      },
+    },
+    "/api/login": {
+      post: {
+        summary: "Вход в систему",
+        tags: ["Auth"],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["username", "password", "phone"],
+                properties: {
+                  username: { type: "string" },
+                  password: { type: "string" },
+                  phone: { type: "string" },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": { description: "Вход успешен" },
+          "401": { description: "Неверные данные" },
+        },
+      },
+    },
+    "/api/refresh": {
+      post: {
+        summary: "Обновление токенов",
+        tags: ["Auth"],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["token"],
+                properties: {
+                  token: { type: "string", description: "Refresh token" },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": { description: "Токены обновлены" },
+          "401": { description: "Не авторизован" },
+          "403": { description: "Неверный токен" },
+        },
+      },
+    },
+    "/api/logout": {
+      post: {
+        summary: "Выход из системы",
+        tags: ["Auth"],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["token"],
+                properties: {
+                  token: { type: "string", description: "Refresh token" },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": { description: "Выход успешен" },
+          "400": { description: "Неверный запрос" },
+        },
+      },
+    },
+    "/api/protected": {
+      get: {
+        summary: "Защищенный эндпоинт",
+        tags: ["Protected"],
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Доступ разрешен" },
+          "401": { description: "Не авторизован" },
+          "403": { description: "Неверный токен" },
+        },
+      },
+    },
+    "/api/users": {
+      get: {
+        summary: "Получить список всех пользователей",
+        tags: ["Users"],
+        responses: {
+          "200": { description: "Список пользователей" },
+        },
+      },
+    },
+    "/api/contacts": {
+      get: {
+        summary: "Получить контакты",
+        tags: ["Contacts"],
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Контакты" },
+          "401": { description: "Не авторизован" },
+          "403": { description: "Неверный токен" },
+        },
+      },
+      post: {
+        summary: "Добавить/обновить контакты",
+        tags: ["Contacts"],
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: false,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  phone: { type: "string" },
+                  address: { type: "string" },
+                  email: { type: "string" },
+                  title: { type: "string" },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "201": { description: "Контакты обновлены" },
+          "401": { description: "Не авторизован" },
+          "403": { description: "Неверный токен" },
+        },
+      },
+    },
+    "/api/advantages": {
+      get: {
+        summary: "Получить список преимуществ",
+        tags: ["Advantages"],
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Список преимуществ" },
+          "401": { description: "Не авторизован" },
+          "403": { description: "Неверный токен" },
+        },
+      },
+      post: {
+        summary: "Добавить преимущество",
+        tags: ["Advantages"],
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["title", "description"],
+                properties: {
+                  title: { type: "string" },
+                  description: { type: "string" },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "201": { description: "Преимущество добавлено" },
+          "400": { description: "Ошибка валидации" },
+          "401": { description: "Не авторизован" },
+          "403": { description: "Неверный токен" },
+        },
+      },
+    },
+    "/api/projects": {
+      get: {
+        summary: "Получить список проектов",
+        tags: ["Projects"],
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": { description: "Список проектов" },
+          "401": { description: "Не авторизован" },
+          "403": { description: "Неверный токен" },
+        },
+      },
+      post: {
+        summary: "Добавить проект",
+        tags: ["Projects"],
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["photo", "title", "description", "workType", "client"],
+                properties: {
+                  photo: { type: "string", description: "Ссылка на фото" },
+                  title: { type: "string" },
+                  description: { type: "string" },
+                  workType: { type: "string", description: "Тип работы" },
+                  client: { type: "string", description: "Заказчик" },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "201": { description: "Проект добавлен" },
+          "400": { description: "Ошибка валидации" },
+          "401": { description: "Не авторизован" },
+          "403": { description: "Неверный токен" },
         },
       },
     },
   },
-  apis: [
-    join(__dirname, "./index.js"),
-    "./index.js",
-    join(process.cwd(), "./index.js"),
-    "index.js"
-  ],
 };
-
-// Базовая спецификация с основными путями
-const baseSwaggerSpec = {
-  ...swaggerOptions.definition,
-  paths: {}
-};
-
-let swaggerSpec = baseSwaggerSpec;
-try {
-  const generatedSpec = swaggerJsdoc(swaggerOptions);
-  // Проверяем, что спецификация была создана правильно и содержит пути
-  if (generatedSpec && generatedSpec.paths && Object.keys(generatedSpec.paths).length > 0) {
-    swaggerSpec = generatedSpec;
-    console.log("Swagger спецификация успешно загружена");
-  } else {
-    console.log("Swagger спецификация пустая, используем базовую");
-    swaggerSpec = baseSwaggerSpec;
-  }
-} catch (error) {
-  console.error("Ошибка при создании Swagger спецификации:", error.message);
-  // Используем базовую спецификацию без JSDoc комментариев
-  swaggerSpec = baseSwaggerSpec;
-}
 
 // Настройка Swagger UI
 const swaggerUiOptions = {
   customCss: '.swagger-ui .topbar { display: none }',
-  customSiteTitle: "JWT Back API Documentation"
+  customSiteTitle: "JWT Back API Documentation",
 };
 
-// Настройка Swagger UI с явной обработкой маршрутов для Vercel
-const swaggerUiHandler = swaggerUi.setup(swaggerSpec, swaggerUiOptions);
-
-app.use("/api-docs", swaggerUi.serve);
-app.get("/api-docs", swaggerUiHandler);
-
-// Альтернативный эндпоинт для проверки спецификации
-app.get("/api-docs.json", (req, res) => {
-  res.setHeader("Content-Type", "application/json");
-  res.json(swaggerSpec);
-});
+try {
+  app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec, swaggerUiOptions));
+  
+  // Альтернативный эндпоинт для проверки спецификации
+  app.get("/api-docs.json", (req, res) => {
+    res.setHeader("Content-Type", "application/json");
+    res.json(swaggerSpec);
+  });
+} catch (error) {
+  console.error("Ошибка при настройке Swagger UI:", error.message);
+}
 
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || "supersecret";
