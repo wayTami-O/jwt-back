@@ -3,11 +3,17 @@ import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
 import swaggerUi from "swagger-ui-express";
 import swaggerJsdoc from "swagger-jsdoc";
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
 
 dotenv.config();
 
 const app = express();
 app.use(express.json());
+
+// Получаем путь к текущему файлу для работы на Vercel
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 // Swagger конфигурация
 const swaggerOptions = {
@@ -38,11 +44,54 @@ const swaggerOptions = {
       },
     },
   },
-  apis: ["./index.js"],
+  apis: [
+    join(__dirname, "./index.js"),
+    "./index.js",
+    join(process.cwd(), "./index.js"),
+    "index.js"
+  ],
 };
 
-const swaggerSpec = swaggerJsdoc(swaggerOptions);
-app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+// Базовая спецификация с основными путями
+const baseSwaggerSpec = {
+  ...swaggerOptions.definition,
+  paths: {}
+};
+
+let swaggerSpec = baseSwaggerSpec;
+try {
+  const generatedSpec = swaggerJsdoc(swaggerOptions);
+  // Проверяем, что спецификация была создана правильно и содержит пути
+  if (generatedSpec && generatedSpec.paths && Object.keys(generatedSpec.paths).length > 0) {
+    swaggerSpec = generatedSpec;
+    console.log("Swagger спецификация успешно загружена");
+  } else {
+    console.log("Swagger спецификация пустая, используем базовую");
+    swaggerSpec = baseSwaggerSpec;
+  }
+} catch (error) {
+  console.error("Ошибка при создании Swagger спецификации:", error.message);
+  // Используем базовую спецификацию без JSDoc комментариев
+  swaggerSpec = baseSwaggerSpec;
+}
+
+// Настройка Swagger UI
+const swaggerUiOptions = {
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: "JWT Back API Documentation"
+};
+
+// Настройка Swagger UI с явной обработкой маршрутов для Vercel
+const swaggerUiHandler = swaggerUi.setup(swaggerSpec, swaggerUiOptions);
+
+app.use("/api-docs", swaggerUi.serve);
+app.get("/api-docs", swaggerUiHandler);
+
+// Альтернативный эндпоинт для проверки спецификации
+app.get("/api-docs.json", (req, res) => {
+  res.setHeader("Content-Type", "application/json");
+  res.json(swaggerSpec);
+});
 
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || "supersecret";
